@@ -22,4 +22,12 @@ LOC2FPP = {
     ]
 }
 
-JOBS_EXTRACTION_PATTERN = r'data-entity-urn="urn:li:jobPosting:(\d+)"[\s\S]*?href="([^"]+)"[\s\S]*?base-search-card__title">\s*([^<]+)'
+JOBS_EXTRACTION_PATTERN = (
+    r'data-entity-urn="urn:li:jobPosting:(\d+)"'
+    r'[\s\S]*?'
+    r'href="([^"]+)"'
+    r'[\s\S]*?'
+    r'base-search-card__title">\s*([^<]+)'
+    r'[\s\S]*?'
+    r'base-search-card__subtitle"[^>]*?>\s*(?:<a[^>]*?>)?\s*([^<]+)'
+)

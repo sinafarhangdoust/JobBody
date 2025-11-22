@@ -6,6 +6,7 @@ from urllib.parse import quote
 import re
 
 import httpx
+from pydantic import BaseModel, Field
 
 from constants import (
     COUNTRY2GEOID,
@@ -13,23 +14,19 @@ from constants import (
     JOBS_EXTRACTION_PATTERN
 )
 
-# Constants
-BASE_SEARCH_URL = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
-# Use a real browser User-Agent to avoid immediate blocking
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-}
-
-# Configure logging to see what's happening
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-async def fetch_with_retries(
+class Job(BaseModel):
+    id: str
+    title: str
+    url: str
+    description: str = None
+    company: str = None
+    location: str = None
+
+
+async def ahttp_with_retry(
           client: httpx.AsyncClient,
           url: str,
           params: dict = None,
@@ -72,23 +69,36 @@ async def fetch_with_retries(
 
 class LinkedinOps:
 
-    def __init__(self):
+    def __init__(self, headers: dict = None):
         self.ahttp_client = httpx.AsyncClient()
-        pass
+        self.base_search_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
+        if headers:
+            self.headers = headers
+        else:
+            self.headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+            }
+
 
     @staticmethod
     def map_loc2ids(location: str) -> Tuple[int, List[int]]:
         """
         returns geoid and fine locations of a given location
-        :param location:
+        :param location: the location to look for
         :return:
         """
         logger.info(f"Mapping {location} to ids")
         return COUNTRY2GEOID[location], LOC2FPP[location]
 
     @staticmethod
-    def process_jobs(response: str):
-
+    def process_jobs(response: str) -> List[Job]:
+        """
+        processes the response of the get_jobs function and returns a list of Jobs
+        :param response: the raw html response
+        :return:
+        """
         results = []
         matches = re.finditer(JOBS_EXTRACTION_PATTERN, response)
 
@@ -96,18 +106,23 @@ class LinkedinOps:
             job_id = match.group(1)
             raw_url = match.group(2)
             raw_title = match.group(3)
+            raw_company = match.group(4)
 
+            # Clean the extracted data
             clean_url = raw_url.split('?')[0]
             clean_title = raw_title.strip()
+            clean_company = raw_company.strip()
 
-            results.append({
-                "job_id": job_id,
-                "url": clean_url,
-                "title": clean_title
-            })
+            results.append(
+                Job(
+                    id=job_id,
+                    title=clean_title,
+                    company=clean_company,
+                    url=clean_url,
+                )
+            )
 
         return results
-
 
     async def get_jobs(
               self,
@@ -115,7 +130,7 @@ class LinkedinOps:
               location: str,
               start: int = 0,
               n_jobs: int = 10,
-    ):
+    ) -> List[Job]:
         """
         Specific wrapper for the Job Search API.
         """
@@ -130,9 +145,9 @@ class LinkedinOps:
         jobs = []
         logger.info(f"Getting jobs {n_jobs} for location: {location} with keywords: {keywords}")
         while len(jobs) < n_jobs:
-            response = await fetch_with_retries(
+            response = await ahttp_with_retry(
                 client=self.ahttp_client,
-                url=BASE_SEARCH_URL,
+                url=self.base_search_url,
                 params=params,
             )
             if response:
@@ -142,6 +157,8 @@ class LinkedinOps:
         logger.info(f"Found {len(jobs)} jobs for location: {location} with keywords: {keywords}")
         return jobs[:n_jobs]
 
+    async def get_job_info(self, job):
+        pass
 
 async def main():
         keywords = "Machine Learning Engineer"
@@ -150,8 +167,9 @@ async def main():
         jobs = await linkedin_ops.get_jobs(
             keywords=keywords,
             location=location,
-            n_jobs=20,
+            n_jobs=10,
         )
+        print()
 
 if __name__ == "__main__":
     asyncio.run(main())
