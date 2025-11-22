@@ -1,2 +1,3 @@
-# Resume Generator
-Generates tailored resumes to make your job application process less miserable.
+# Job Body
+
+Your job body to make your job search experience less miserable.
