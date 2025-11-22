@@ -31,7 +31,8 @@ async def ahttp_with_retry(
           url: str,
           params: dict = None,
           headers: dict = None,
-          retries: int = 3
+          retries: int = 3,
+          random_wait: bool = True,
 ) -> str | None:
     """
     Makes an HTTP GET request with random delays, headers, and retry logic.
@@ -40,9 +41,10 @@ async def ahttp_with_retry(
         try:
             # Random Delay (Human-like behavior)
             # Sleep between 2 and 5 seconds to respect rate limits
-            delay = random.uniform(2, 5)
-            logger.info(f"Sleeping for {delay:.2f}s before requesting...")
-            await asyncio.sleep(delay)
+            if random_wait:
+                delay = random.uniform(2, 5)
+                logger.info(f"Sleeping for {delay:.2f}s before requesting...")
+                await asyncio.sleep(delay)
 
             logger.info(f"Fetching URL: {url} (Attempt {attempt + 1}/{retries})")
             response = await client.get(url, params=params, headers=headers, timeout=15.0)
@@ -157,8 +159,13 @@ class LinkedinOps:
         logger.info(f"Found {len(jobs)} jobs for location: {location} with keywords: {keywords}")
         return jobs[:n_jobs]
 
-    async def get_job_info(self, job):
-        pass
+    async def get_job_info(self, job: Job):
+        response = await ahttp_with_retry(
+            client=self.ahttp_client,
+            headers=self.headers,
+            url=job.url,
+        )
+
 
 async def main():
         keywords = "Machine Learning Engineer"
@@ -169,6 +176,7 @@ async def main():
             location=location,
             n_jobs=10,
         )
+        await linkedin_ops.get_job_info(jobs[1])
         print()
 
 if __name__ == "__main__":
