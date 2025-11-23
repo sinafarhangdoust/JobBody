@@ -198,7 +198,7 @@ class LinkedinWrapper:
             "sortBy": sort_by,
         }
         if time_filter:
-            params["f_TPR"] = f"r{str(time_filter)}",
+            params["f_TPR"] = f"r{str(time_filter)}"
         jobs = []
         logger.info(f"Getting jobs {n_jobs} for location: {location} with keywords: {keywords}")
         while len(jobs) < n_jobs:
