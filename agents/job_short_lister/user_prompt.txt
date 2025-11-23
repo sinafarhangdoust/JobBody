@@ -3,9 +3,9 @@ JOB TITLE:
 {job_title}
 ----------------
 
-JOB DESCRIPTION:
+BRIEF JOB DESCRIPTION:
 
-{job_description}
+{job_brief}
 ----------------
 
 USER INSTRUCTIONS:
