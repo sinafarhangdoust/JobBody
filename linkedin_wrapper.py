@@ -2,8 +2,7 @@ import asyncio
 import json
 import random
 import logging
-from typing import List, Tuple
-from urllib.parse import quote
+from typing import List, Tuple, Literal, Callable
 import re
 import html
 
@@ -72,8 +71,24 @@ async def ahttp_with_retry(
     logger.error(f"Failed to fetch {url} after {retries} attempts.")
     return None
 
+async def async_with_concurrency(
+          func: Callable,
+          semaphore: asyncio.Semaphore,
+          **kwargs
+):
+    """
+    Execute an asynchronous function while respecting a concurrency limit.
 
-class LinkedinOps:
+    :param func: An awaitable function to be executed.
+    :param semaphore: The semaphore controlling how many tasks may run at once.
+    :param kwargs: Arbitrary keyword arguments passed directly to `func`
+    :return:
+    """
+    async with semaphore:
+        return await func(**kwargs)
+
+
+class LinkedinWrapper:
 
     def __init__(self, headers: dict = None):
         self.ahttp_client = httpx.AsyncClient()
@@ -212,20 +227,33 @@ class LinkedinOps:
               self,
               keywords: str,
               location: str,
+              time_filter: int = None,
               start: int = 0,
               n_jobs: int = 10,
+              sort_by: Literal['R', 'DD'] = 'R',
+              concurrency_limit: int = 3,
     ) -> List[Job]:
         """
         Specific wrapper for the Job Search API.
+
+        :param keywords: keywords to search for
+        :param location: location to look for
+        :param time_filter: time filter to use in seconds
+        :param start: start index
+        :param n_jobs: number of jobs to retrieve
+        :param sort_by: sort by relevance or most recent
+        :param concurrency_limit: the number of concurrency
         """
-        geo_id, ff_ps = self.map_loc2ids(location)
+        geo_id, f_pps = self.map_loc2ids(location)
         params = {
-            "keywords": quote(keywords),
-            "location": location,
+            "f_PP": ",".join([str(f_pp) for f_pp in f_pps]),
             "geoId": geo_id,
-            "ff_p": quote(",".join([str(ff_p) for ff_p in ff_ps])),
-            "start": start
+            "keywords": keywords,
+            "start": start,
+            "sortBy": sort_by,
         }
+        if time_filter:
+            params["f_TPR"] = f"r{str(time_filter)}",
         jobs = []
         logger.info(f"Getting jobs {n_jobs} for location: {location} with keywords: {keywords}")
         while len(jobs) < n_jobs:
@@ -235,22 +263,34 @@ class LinkedinOps:
                 params=params,
             )
             if response:
-                jobs.extend(self.process_jobs(response))
+                processed_response = self.process_jobs(response)
+                if len(processed_response) == 0:
+                    break
+                jobs.extend(processed_response)
 
             params["start"] += 10
         logger.info(f"Found {len(jobs)} jobs for location: {location} with keywords: {keywords}")
 
         jobs = jobs[:n_jobs]
-        job_info_futures = [asyncio.create_task(self.get_job_info(job=job)) for job in jobs]
+
+        semaphore = asyncio.Semaphore(concurrency_limit)
+
+        job_info_futures = [
+            asyncio.create_task(async_with_concurrency(
+                func=self.get_job_info,
+                semaphore=semaphore,
+                job=job
+            )) for job in jobs
+        ]
 
         return await asyncio.gather(*job_info_futures, return_exceptions=True)
 
 
 async def main():
-        keywords = "Machine Learning Engineer, AI Engineer"
+        keywords = "Machine Learning Engineer"
         location = "Denmark"
-        linkedin_ops = LinkedinOps()
-        jobs = await linkedin_ops.get_jobs(
+        linkedin_wrapper = LinkedinWrapper()
+        jobs = await linkedin_wrapper.get_jobs(
             keywords=keywords,
             location=location,
             n_jobs=10,
