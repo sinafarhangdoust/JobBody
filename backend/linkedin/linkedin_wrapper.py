@@ -179,9 +179,9 @@ class LinkedinWrapper(metaclass=SingletonMeta):
 
     async def get_jobs(
               self,
-              keywords: str,
-              location: str,
-              time_filter: int = None,
+              keywords: Optional[str] = None,
+              location: Optional[str] = None,
+              time_filter: Optional[int] = None,
               start: int = 0,
               n_jobs: int = 10,
               sort_by: Literal['R', 'DD'] = 'R',
@@ -196,14 +196,17 @@ class LinkedinWrapper(metaclass=SingletonMeta):
         :param n_jobs: number of jobs to retrieve
         :param sort_by: sort by relevance or most recent
         """
-        geo_id, f_pps = self.map_loc2ids(location)
+
         params = {
-            "f_PP": ",".join([str(f_pp) for f_pp in f_pps]),
-            "geoId": geo_id,
-            "keywords": keywords,
             "start": start,
             "sortBy": sort_by,
         }
+        if keywords:
+            params['keywords'] = keywords
+        if location:
+            geo_id, f_pps = self.map_loc2ids(location)
+            params['geoId'] = geo_id
+            params['f_PP'] = ",".join([str(f_pp) for f_pp in f_pps])
         if time_filter:
             params["f_TPR"] = f"r{str(time_filter)}"
         jobs = []
@@ -230,9 +233,9 @@ class LinkedinWrapper(metaclass=SingletonMeta):
 
     async def get_jobs_details(
             self,
-            keywords: str,
-            location: str,
-            time_filter: int = None,
+            keywords: Optional[str] = None,
+            location: Optional[str] = None,
+            time_filter: Optional[int] = None,
             start: int = 0,
             n_jobs: int = 10,
             sort_by: Literal['R', 'DD'] = 'R',
