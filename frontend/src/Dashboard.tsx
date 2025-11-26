@@ -11,8 +11,8 @@ export default function Dashboard() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   // Search & Pagination state
-  const [keywords, setKeywords] = useState('Python');
-  const [location, setLocation] = useState('United States');
+  const [keywords, setKeywords] = useState('');
+  const [location, setLocation] = useState('');
   const [start, setStart] = useState(0);
 
   const LIMIT = 10; // Fixed limit per page
@@ -86,6 +86,7 @@ export default function Dashboard() {
         keywords={keywords} setKeywords={setKeywords}
         location={location} setLocation={setLocation}
         onSearch={handleSearch} loading={loading}
+        showSearch={true}
       />
 
       <div className="flex flex-1 overflow-hidden max-w-7xl w-full mx-auto p-6 gap-8">
