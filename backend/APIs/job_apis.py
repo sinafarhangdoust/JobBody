@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
+from schemas import JobSearchParamsInput, UserInstructionsInput, ResumeInput
 from backend.linkedin.linkedin_wrapper import LinkedinWrapper, Job
-from schemas import JobSearchParamsInput
+from backend.platform.user_settings import save_instructions, save_resume, load_instructions, load_resume
 
 # TODO: implement authentication for the APIs
 
@@ -116,6 +117,35 @@ async def get_job_details(params: Job = Depends()):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/user/instructions", response_model=str, tags=['User'])
+async def load_user_instructions():
+    try:
+        return load_instructions()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/user/instructions", response_model=None, tags=['User'])
+async def save_user_instructions(params: UserInstructionsInput):
+    try:
+        save_instructions(instructions=params.instructions)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/user/resume", response_model=str, tags=['User'])
+async def load_user_instructions():
+    try:
+        return load_resume()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/user/resume", response_model=None, tags=['User'])
+async def save_user_resume(params: ResumeInput):
+    try:
+        save_resume(resume=params.resume)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == '__main__':
     import uvicorn

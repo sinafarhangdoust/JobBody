@@ -9,3 +9,9 @@ class JobSearchParamsInput(BaseModel):
     limit: Optional[int] = Field(10, ge=1, le=50, description="Number of jobs to retrieve")
     time_filter: Optional[int] = Field(None, description="Time filter in seconds")
     sort_by: Literal['R', 'DD'] = Field('R', description="Sort by Relevance (R) or Recency (DD)")
+
+class UserInstructionsInput(BaseModel):
+    instructions: str = Field(..., description="The user instructions about the relevancy of the jobs")
+
+class ResumeInput(BaseModel):
+    resume: str = Field(..., description="User's resume")
