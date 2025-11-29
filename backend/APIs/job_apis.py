@@ -155,7 +155,7 @@ async def save_user_instructions(params: UserInstructionsInput):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/user/resume", response_model=str, tags=['User'])
-async def load_user_instructions():
+async def load_user_resume():
     try:
         return load_resume()
     except Exception as e:
