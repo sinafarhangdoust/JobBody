@@ -6,10 +6,10 @@ from backend.constants import DATABASE_ENDPOINT
 
 engine = create_engine(DATABASE_ENDPOINT, echo=True)
 
-test_users = [
+users = [
     UserProfile(
-        name="Sina",
-        email="sina.farhangdoust@gmail.com",
+        name="single_user",
+        email="scoutling@scoutling.com",
         resume_text="",
         filter_instructions="",
     )
@@ -27,7 +27,7 @@ def init_db(override: bool = False):
 
     with Session(engine) as session:
 
-        for test_user in test_users:
+        for test_user in users:
             existing_user = session.exec(
                 select(UserProfile).where(UserProfile.email == test_user.email)
             ).first()
