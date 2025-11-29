@@ -3,24 +3,31 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import Session, select
+from sqlmodel import Session, select, create_engine
 
-from schemas import JobSearchParamsInput, UserInstructionsInput, ResumeInput
+from backend.APIs.schemas import JobSearchParamsInput, UserInstructionsInput, ResumeInput
 from backend.linkedin.linkedin_wrapper import LinkedinWrapper, Job
 from backend.platform.user_settings import save_instructions, save_resume, load_instructions, load_resume
-from backend.database.init_db import init_db, get_session
 from backend.database.models import Job, UserProfile
 from backend.queue.worker import analyze_jobs_task
+from backend.constants import DATABASE_ENDPOINT
 
 # TODO: implement authentication for the APIs
 
+db_engine = create_engine(DATABASE_ENDPOINT, echo=True)
+
+def get_db_session():
+    """Dependency for FastAPI Endpoints"""
+    with Session(db_engine) as session:
+        yield session
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
     linkedin_wrapper = LinkedinWrapper()
-    yield
-    await linkedin_wrapper.close_connection()
+    try:
+        yield
+    finally:
+        await linkedin_wrapper.close_connection()
 
 
 # --- App Definition ---
@@ -113,20 +120,24 @@ async def get_jobs_details(params: JobSearchParamsInput = Depends()):
 
 
 @app.post("/jobs/filter")
-def trigger_analysis(session: Session = Depends(get_session)):
-    # 1. Ensure we have a user profile (create default if missing for single-user mode)
-    user = session.exec(select(UserProfile)).first()
-    if not user:
-        user = UserProfile(resume_text="", filter_instructions="")
-        session.add(user)
-        session.commit()
-        session.refresh(user)
+def trigger_analysis(db_session: Session = Depends(get_db_session)):
 
-    # 2. Trigger the Celery Task
-    # .delay() is how you send it to the background
+    # Assuming that the app is single user
+
+    user = db_session.exec(select(UserProfile).where(UserProfile.email == "scoutling@scoutling.com")).first()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
     task = analyze_jobs_task.delay(user.id)
 
     return {"message": "Analysis started", "task_id": task.id}
+
+@app.get("/jobs/filter")
+def get_filtered_jobs(db_session: Session = Depends(get_db_session)):
+    pass
 
 @app.get("/job/details", response_model=Job, tags=["Jobs"])
 async def get_job_details(params: Job = Depends()):

@@ -15,6 +15,10 @@ users = [
     )
 ]
 
+def get_session():
+    """Dependency for FastAPI Endpoints"""
+    with Session(engine) as session:
+        yield session
 
 def init_db(override: bool = False):
     """Creates the tables if they don't exist and populates default users."""
@@ -42,12 +46,6 @@ def init_db(override: bool = False):
 
         session.commit()
         logger.info("Database initialization complete.")
-
-
-def get_session():
-    """Dependency for FastAPI Endpoints"""
-    with Session(engine) as session:
-        yield session
 
 
 def clear_all_data(reset_ids: bool = True):
