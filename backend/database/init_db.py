@@ -10,8 +10,6 @@ users = [
     UserProfile(
         name="single_user",
         email="scoutling@scoutling.com",
-        resume_text="",
-        filter_instructions="",
     )
 ]
 
@@ -62,12 +60,7 @@ def clear_all_data(reset_ids: bool = True):
             logger.info("Truncating tables (resetting IDs)...")
             session.exec(text("TRUNCATE TABLE userprofile, job, jobanalysis RESTART IDENTITY CASCADE"))
         else:
-            # Method 2: Standard DELETE (Slower, keeps ID history)
-            logger.info("Deleting records...")
-            # Delete child tables first to avoid foreign key constraint errors
-            session.exec(delete(JobAnalysis))
-            session.exec(delete(Job))
-            session.exec(delete(UserProfile))
+            SQLModel.metadata.drop_all(engine)
 
         session.commit()
         logger.info("All records have been cleared.")

@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from sqlmodel import Field, SQLModel, Relationship
-from sqlalchemy import Text, Column
+from sqlalchemy import Text, Column, JSON
 
 
 # --- 1. The Job (Static Data) ---
@@ -26,6 +26,7 @@ class UserProfile(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(default="")
     email: str = Field(index=True)
+    job_titles: List[str] = Field(default=[], sa_column=Column(JSON))
     # Use sa_column=Column(Text) to ensure it can hold unlimited text
     resume_text: str = Field(default="", sa_column=Column(Text))
 
